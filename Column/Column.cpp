@@ -1,4 +1,5 @@
 #include <iostream>
+#include <optional>
 
 #include "Column.h"
 
@@ -20,9 +21,12 @@ bool Column::insertValue(int value)
     return false;
 }
 
-int Column::getValueAt(int index) const
+std::optional<int> Column::getValueAt(int index) const
 {
-    return this->data.at(index);
+    if (index < 0 || static_cast<size_t>(index) >= data.size())
+        return std::nullopt;
+
+    return data[index];
 }
 
 int Column::getSize() const
@@ -39,7 +43,12 @@ void Column::display() const
 {
     for (int i = 0; i < this->getSize(); i++)
     {
-        std::cout << "[" << i << "] " << this->getValueAt(i) << std::endl;
+        auto v = this->getValueAt(i);
+        std::cout << "[" << i << "] ";
+        if (v)
+            std::cout << *v;
+        else
+            std::cout << "NULL";
     }
 }
 

@@ -39,7 +39,7 @@ public:
      * @return The integer value at the specified index
      * @throws May cause undefined behavior if index is out of bounds
      */
-    int getValueAt(int index) const;
+    std::optional<int> getValueAt(int index) const;
 
     /**
      * @brief Returns the number of elements currently stored in the column
