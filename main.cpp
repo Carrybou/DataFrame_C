@@ -1,10 +1,12 @@
 #include <iostream>
 
-#include "Column/Column.cpp"
+#include "Column/Column.h"
+#include "CDataframe/CDataframe.h"
 
 int main(int argc, char const *argv[])
 {
     Column c1 = Column("c1");
+    Column c2 = Column("c2");
 
     c1.insertValue(56);
     c1.insertValue(6);
@@ -12,11 +14,18 @@ int main(int argc, char const *argv[])
     c1.insertValue(5);
     c1.insertValue(5);
     c1.insertValue(5);
+    c1.insertValue(5);
+    c1.insertValue(5);
 
-    c1.display();
+    c2.insertValue(235);
+    c2.insertValue(43);
+    c2.insertValue(4);
 
-    std::cout << c1.occurence(5) << std::endl;
-    std::cout << c1.numberGreaterThan(6) << std::endl;
-    std::cout << c1.numberLowerThan(6) << std::endl;
+    CDataframe cd = CDataframe({c1, c2});
+
+    std::vector<Column> subset = {c1};
+
+    cd.byCol(subset);
+
     return 0;
 }
