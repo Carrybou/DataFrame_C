@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <optional>
 
 const size_t REALLOC_SIZE = 256;
 
@@ -12,7 +13,7 @@ const size_t REALLOC_SIZE = 256;
 class Column {
 private:
     std::string title;
-    std::vector<int> data;
+    std::vector<std::optional<int>> data;
 
 public:
     /**
@@ -27,17 +28,23 @@ public:
     //~Columns();
 
     /**
-     * @brief : adda new value to a column
-     * @param value : the value to be added
+     * @brief : add a new value (int or null) to a column
+     * @param value : the value to be added (use std::nullopt for null)
      * @return : true if the value is added, false otherwise
      */
-    bool insertValue(int value);
+    bool insertValue(std::optional<int> value);
 
     /**
-     * @brief Retrieves the integer value at a specified index
+     * @brief : remove a value (int or null) to a given index
+     * @param index : the index of the value to remove
+     * @return : true if the value is added, false otherwise
+     */
+    bool removeValue(const int index);
+
+    /**
+     * @brief Retrieves the integer value (or null) at a specified index
      * @param index The zero-based index position
-     * @return The integer value at the specified index
-     * @throws May cause undefined behavior if index is out of bounds
+     * @return The optional<int> at the specified index, or std::nullopt if index out of range
      */
     std::optional<int> getValueAt(int index) const;
 
@@ -52,6 +59,13 @@ public:
      * @return A constant reference to the column's title string
      */
     std::string getName() const;
+
+    /**
+     * @brief Sets a new title/name for the column
+     * @param newName The new name to assign to the column
+     * @return True if the name was successfully set, false otherwise
+     */
+    bool setName(const std::string newName);
 
     /**
      * @brief Displays the column's contents to standard output
@@ -80,6 +94,13 @@ public:
      * @return The count of elements greater than x
      */
     int numberLowerThan(int value) const;
+
+    /**
+     * @brief Resarch if a value exist in the column
+     * @param value The value to search for
+     * @return true if the value exist, false otherwise
+     */
+    bool exist(const int value);
 };
 
 #endif
