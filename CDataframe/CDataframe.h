@@ -16,8 +16,19 @@ public:
     CDataframe(std::initializer_list<Column> cols);
     ~CDataframe();
 
-    void display(std::optional<int> rowOpt = std::nullopt, const std::vector<Column>* colOpt = nullptr);
+    void addCol(Column *col);
+    void rmCol(int idx);
+    void addRow(int idx);
+    void rmRow(int idx);
+
+    // Display
+    void print(std::optional<int> firstRowOpt, std::optional<int> lastRowOpt, const std::vector<Column> *colOpt = nullptr);
+    void display();
     void head(std::optional<int> row = std::nullopt);
+    void tail(std::optional<int> row = std::nullopt);
     void byCol(const std::vector<Column>& col);
+
+    // Helper
+    
     int sizeBiggestCol();
 };

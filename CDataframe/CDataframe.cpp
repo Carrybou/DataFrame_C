@@ -22,12 +22,18 @@ CDataframe::~CDataframe()
 {
 }
 
-void CDataframe::display(std::optional<int> rowOpt, const std::vector<Column>* colOpt)
+void CDataframe::addCol(Column* col)
 {
-    const int rows = rowOpt.value_or(this->sizeBiggestCol());
+    this->columns.push_back(*col);
+}
+
+void CDataframe::print(std::optional<int> firstRowOpt, std::optional<int> lastRowOpt, const std::vector<Column>* colOpt)
+{
+    const int firstRow = firstRowOpt.has_value() ? this->sizeBiggestCol() - firstRowOpt.value() : 0;
+    const int lastRow = lastRowOpt.has_value() ? lastRowOpt.value() : this->sizeBiggestCol();
     const auto& cols = colOpt ? *colOpt : this->columns;
 
-    for (int r = 0; r < rows; ++r) {
+    for (int r = firstRow; r < lastRow; ++r) {
         std::cout << "[" << r << "] ";
         for (const Column& c : cols) {
             auto v = c.getValueAt(r); // optional<int>
@@ -47,12 +53,22 @@ int CDataframe::sizeBiggestCol()
     return max;
 }
 
+void CDataframe::display()
+{
+    print(std::nullopt, std::nullopt);
+}
+
+void CDataframe::tail(std::optional<int> rowOpt)
+{
+    print(rowOpt.value_or(5), std::nullopt);
+}
+
 void CDataframe::head(std::optional<int> rowOpt)
 {
-    display(rowOpt.value_or(5));
+    print(std::nullopt, rowOpt.value_or(5));
 }
 
 void CDataframe::byCol(const std::vector<Column>& col)
 {
-    display(std::nullopt, &col);
+    print(std::nullopt, std::nullopt, &col);
 }
