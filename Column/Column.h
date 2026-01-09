@@ -4,6 +4,8 @@
 #include <vector>
 #include <string>
 #include <optional>
+#include <algorithm>
+#include <numeric>
 
 const size_t REALLOC_SIZE = 256;
 
@@ -13,7 +15,18 @@ const size_t REALLOC_SIZE = 256;
 class Column {
 private:
     std::string title;
-    std::vector<std::optional<int>> data;
+    std::vector<int> data;
+    std::vector<size_t> index;
+    bool validIndex;
+    bool sortAscending;
+
+    /**
+     * @brief Compare two values
+     * @param a First value
+     * @param b Second value
+     * @return -1 if a < b, 0 if a == b, 1 if a > b
+     */
+    int compareValues(int a, int b) const;
 
 public:
     /**
@@ -94,6 +107,45 @@ public:
      * @return The count of elements greater than x
      */
     int numberLowerThan(int value) const;
+
+    /**
+     * @brief Sort a column according to a given order
+     * @param ascending : true for ascending, false for descending
+     */
+    void sort(bool ascending = true);
+
+    /**
+     * @brief Display the contents of a column in sorted order
+     * @param ascending: true for ascending, false for descending
+     */
+    void printSorted(bool ascending = true);
+
+    /**
+     * @brief Remove the index of a column
+     */
+    void eraseIndex();
+
+    /**
+     * @brief Check if an index is correct
+     * @return: -1: index not existing,
+     *           0: the index exists but invalid,
+     *           1: the index is correct
+     */
+    int checkIndex() const;
+
+    /**
+     * @brief Update the index
+     */
+    void updateIndex();
+
+    /**
+     * @brief Test if a value exists in a column
+     * @param val: The value to search for
+     * @return: -1: column not sorted,
+     *           0: value not found
+     *           1: value found
+     */
+    int searchValue(int val) const;
 
     /**
      * @brief Resarch if a value exist in the column
