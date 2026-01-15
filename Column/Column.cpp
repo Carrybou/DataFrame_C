@@ -142,9 +142,9 @@ void Column::sort(bool ascending)
     std::sort(this->index.begin(), this->index.end(),
         [this, ascending](size_t a, size_t b) {
             if (ascending) {
-                return this->compareValues(this->data[a], this->data[b]) < 0;
+                return this->compareValues(this->data[a].value(), this->data[b].value()) < 0;
             } else {
-                return this->compareValues(this->data[a], this->data[b]) > 0;
+                return this->compareValues(this->data[a].value(), this->data[b].value()) > 0;
             }
         });
 
@@ -162,7 +162,7 @@ void Column::printSorted(bool ascending)
     // Afficher les valeurs dans l'ordre trié
     for (size_t i = 0; i < this->index.size(); i++) {
         size_t idx = this->index[i];
-        std::cout << "[" << idx << "] " << this->data[idx] << std::endl;
+        std::cout << "[" << idx << "] " << this->data[idx].value() << std::endl;
     }
 }
 
@@ -214,7 +214,7 @@ int Column::searchValue(int val) const
     while (left < right) {
         size_t mid = left + (right - left) / 2;
         size_t idx = this->index[mid];
-        int comparison = this->compareValues(this->data[idx], val);
+        int comparison = this->compareValues(this->data[idx].value(), val);
 
         if (comparison == 0) {
             return 1; // Trouvé

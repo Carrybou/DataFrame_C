@@ -15,7 +15,7 @@ const size_t REALLOC_SIZE = 256;
 class Column {
 private:
     std::string title;
-    std::vector<int> data;
+    std::vector<std::optional<int>> data;
     std::vector<size_t> index;
     bool validIndex;
     bool sortAscending;
