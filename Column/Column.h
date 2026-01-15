@@ -6,8 +6,41 @@
 #include <optional>
 #include <algorithm>
 #include <numeric>
+#include <any>
 
 const size_t REALLOC_SIZE = 256;
+
+enum class ColumnType {
+    NULLVAL = 1,
+    UINT,
+    INT,
+    USHORT,
+    SHORT,
+    ULONG,
+    LONG,
+    UCHAR,
+    CHAR,
+    FLOAT,
+    DOUBLE,
+    STRING,
+    OBJECT
+};
+
+using ColumnValue = std::variant<
+    std::monostate, // Pour NULL
+    uint32_t,
+    int32_t,
+    uint16_t,
+    int16_t,
+    uint64_t,
+    int64_t,
+    uint8_t,
+    int8_t,
+    float,
+    double,
+    std::string,
+    std::any // Pour les objets quelconques
+>;
 
 /**
  * @brief Column class for storing integer values
@@ -15,8 +48,9 @@ const size_t REALLOC_SIZE = 256;
 class Column {
 private:
     std::string title;
-    std::vector<std::optional<int>> data;
+    std::vector<std::optional<ColumnValue>> data;
     std::vector<size_t> index;
+    ColumnType columnType;
     bool validIndex;
     bool sortAscending;
 
@@ -26,14 +60,15 @@ private:
      * @param b Second value
      * @return -1 if a < b, 0 if a == b, 1 if a > b
      */
-    int compareValues(int a, int b) const;
+    int compareValues(const ColumnValue& a, const ColumnValue& b) const;
 
 public:
     /**
      * @brief Constructor - create a column
+     * @param type : column type
      * @param columnTitle : Column title
      */
-    Column(const std::string& colName);
+    Column(const std::string& colName, ColumnType type);
 
     /**
      * @brief Destructor
@@ -41,26 +76,25 @@ public:
     //~Columns();
 
     /**
-     * @brief : add a new value (int or null) to a column
-     * @param value : the value to be added (use std::nullopt for null)
-     * @return : true if the value is added, false otherwise
-     */
-    bool insertValue(std::optional<int> value);
+    * @brief: Insert a new value into a column
+    * @param value : The value to insert (as ColumnValue)
+    * @return: true if the value is correctly inserted, false otherwise
+    */
+    void insertValue(std::optional<ColumnValue> value);
 
     /**
-     * @brief : remove a value (int or null) to a given index
+     * @brief : remove a value  to a given index
      * @param index : the index of the value to remove
      * @return : true if the value is added, false otherwise
      */
     bool removeValue(const int index);
 
     /**
-     * @brief Retrieves the integer value (or null) at a specified index
+     * @brief Retrieves the  value (or null) at a specified index
      * @param index The zero-based index position
-     * @return The optional<int> at the specified index, or std::nullopt if index out of range
+     * @return The optional<ColumnValue> at the specified index, or std::nullopt if index out of range
      */
-    std::optional<int> getValueAt(int index) const;
-
+    std::optional<ColumnValue> getValueAt(int index) const;
     /**
      * @brief Returns the number of elements currently stored in the column
      * @return The size of the data vector
@@ -91,14 +125,14 @@ public:
      * @param value The integer value to search for
      * @return The count of how many times the value appears in the column
      */
-    int occurence(int value) const;
+    int occurence(const ColumnValue& value) const;
 
     /**
      * @brief Counts the number of elements greater than a specified value
      * @param value The threshold value for comparison
      * @return The count of elements greater than x
      */
-    int numberGreaterThan(int value) const;
+    int numberGreaterThan(const ColumnValue& value) const;
 
 
     /**
@@ -106,7 +140,7 @@ public:
      * @param value The threshold value for comparison
      * @return The count of elements greater than x
      */
-    int numberLowerThan(int value) const;
+    int numberLowerThan(const ColumnValue& value) const;
 
     /**
      * @brief Sort a column according to a given order
@@ -145,14 +179,15 @@ public:
      *           0: value not found
      *           1: value found
      */
-    int searchValue(int val) const;
+    int searchValue(const ColumnValue& val) const;
 
     /**
      * @brief Resarch if a value exist in the column
      * @param value The value to search for
      * @return true if the value exist, false otherwise
      */
-    bool exist(const int value);
+    bool exist(const ColumnValue& value);
+
 
     /**
      * @brief Access/replace the value located in a cell of the column using its row number
@@ -160,7 +195,14 @@ public:
      * @param newValue The new value to set
      * @return true if the value was successfully replaced, false otherwise
      */
-    bool accessReplaceValue(int row, std::optional<int> newValue);
+    bool accessReplaceValue(int row, std::optional<ColumnValue> newValue);
+
+    /**
+    * @brief: Convert a column value to string
+    * @param i: The index of the value to retrieve
+    * @return: String representation of the value
+    */
+    std::string valueToString(size_t i) const;
 };
 
 #endif

@@ -1,9 +1,10 @@
 #include <iostream>
 #include <optional>
+#include <algorithm> // std::max
 
 #include "CDataframe.h"
 
-CDataframe::CDataframe() 
+CDataframe::CDataframe()
 {
     this->columns = std::vector<Column>();
 }
@@ -14,7 +15,7 @@ CDataframe::CDataframe(std::initializer_list<Column> cols)
     int maxSize = 0;
     for (const auto& c : columns) maxSize = std::max(maxSize, c.getSize());
     for (auto& c : columns)
-        while (c.getSize() < maxSize) c.insertValue(std::nullopt);
+        while (c.getSize() < maxSize) c.insertValue(std::nullopt); // insert NULL
 }
 
 CDataframe::~CDataframe()
@@ -22,31 +23,42 @@ CDataframe::~CDataframe()
 }
 
 /*
- Display 
+ Display
 --------------------------------------------
 */
 
 void CDataframe::print(std::optional<int> firstRowOpt, std::optional<int> lastRowOpt, const std::vector<Column>* colOpt)
 {
-    const int firstRow = firstRowOpt.has_value() ? this->sizeBiggestCol() - firstRowOpt.value() : 0;
-    const int lastRow = lastRowOpt.has_value() ? lastRowOpt.value() : this->sizeBiggestCol();
+    // MIN FIX: logique de firstRow (ton calcul sizeBiggestCol() - firstRowOpt était bizarre)
+    // Ici: firstRowOpt = nombre de lignes à afficher depuis la fin (tail)
+    const int total = this->sizeBiggestCol();
+    const int firstRow = firstRowOpt.has_value() ? std::max(0, total - firstRowOpt.value()) : 0;
+    const int lastRow  = lastRowOpt.has_value()  ? std::min(total, lastRowOpt.value())      : total;
+
     const auto& cols = colOpt ? *colOpt : this->columns;
 
-    for (int r = firstRow; r < lastRow + 1; ++r) {
-        std::cout << "[" << r << "] ";
-        for (const Column& c : cols) {
-            if (r == 0)
-            {
+    // r=0 => header, r>=1 => data row r-1
+    for (int r = 0; r < (lastRow - firstRow) + 2; ++r) {
+        if (r == 0) {
+            std::cout << "[H] ";
+            for (const Column& c : cols) {
                 std::cout << c.getName() << " ";
             }
+            std::cout << "\n\n";
+            continue;
+        }
+
+        const int row = firstRow + (r - 1);
+        if (row >= total) break;
+
+        std::cout << "[" << row << "] ";
+        for (const Column& c : cols) {
+            auto v = c.getValueAt(row); // optional<ColumnValue>
+            if (v.has_value())
+                std::cout << c.valueToString(static_cast<size_t>(row));
             else
-            {
-                int optR = r - 1;
-                auto v = c.getValueAt(optR); // optional<int>
-                if (v) std::cout << *v;
-                else   std::cout << "NULL";
-                std::cout << " ";
-            }
+                std::cout << "NULL";
+            std::cout << " ";
         }
         std::cout << "\n\n";
     }
@@ -64,6 +76,7 @@ void CDataframe::tail(std::optional<int> rowOpt)
 
 void CDataframe::head(std::optional<int> rowOpt)
 {
+    // head = de 0 à n-1
     print(std::nullopt, rowOpt.value_or(5));
 }
 
@@ -73,7 +86,7 @@ void CDataframe::displayCol(const std::vector<Column>& col)
 }
 
 /*
- Operation 
+ Operation
 --------------------------------------------
 */
 
@@ -85,7 +98,7 @@ bool CDataframe::addCol(Column* col)
     return true;
 }
 
-bool CDataframe::rmCol(Column *optCol)
+bool CDataframe::rmCol(Column* optCol)
 {
     if (optCol == nullptr) return false;
 
@@ -101,20 +114,19 @@ bool CDataframe::rmCol(Column *optCol)
 
 bool CDataframe::addRow(const std::vector<int>& row)
 {
-    if (row.size() > this->columns.size() || row.empty())
+    if (row.empty() || row.size() > this->columns.size())
         return false;
 
+    // MIN FIX: le return true était dans la boucle => ça sortait au 1er élément
     for (size_t i = 0; i < this->columns.size(); i++)
     {
         if (i >= row.size())
             this->columns.at(i).insertValue(std::nullopt);
         else
-            this->columns.at(i).insertValue(row[i]);
-
-        return true;
+            this->columns.at(i).insertValue(ColumnValue(row[i])); // conversion explicite
     }
 
-    return false;
+    return true;
 }
 
 bool CDataframe::rmRow(const int idx)
@@ -122,13 +134,13 @@ bool CDataframe::rmRow(const int idx)
     if (idx < 0 || idx >= this->sizeBiggestCol())
         return false;
 
+    // MIN FIX: return true était dans la boucle => ça supprimait que dans la 1ère colonne
     for (size_t i = 0; i < this->columns.size(); i++)
     {
         this->columns.at(i).removeValue(idx);
-        return true;
     }
 
-    return false;
+    return true;
 }
 
 bool CDataframe::renameCol(Column* col, const std::string& newName)
@@ -146,14 +158,14 @@ bool CDataframe::renameCol(Column* col, const std::string& newName)
 
 bool CDataframe::exist(const int val)
 {
+    // Avec ta nouvelle Column, exist prend ColumnValue
+    ColumnValue v(val);
+
     for (size_t i = 0; i < this->columns.size(); i++)
     {
-        if (this->columns.at(i).exist(val))
-        {
+        if (this->columns.at(i).exist(v))
             return true;
-        }
     }
-
     return false;
 }
 
@@ -163,7 +175,8 @@ bool CDataframe::replaceValue(const Column& col, const int index, const int newV
     {
         if (this->columns.at(i).getName() == col.getName())
         {
-            return this->columns.at(i).accessReplaceValue(index, newVal);
+            // ta Column attend optional<ColumnValue>
+            return this->columns.at(i).accessReplaceValue(index, ColumnValue(newVal));
         }
     }
 
@@ -171,7 +184,7 @@ bool CDataframe::replaceValue(const Column& col, const int index, const int newV
 }
 
 /*
-Statistics 
+ Statistics
 --------------------------------------------
 */
 
@@ -182,35 +195,38 @@ int CDataframe::numberOfRows()
 
 int CDataframe::numberOfCols()
 {
-    return this->columns.size();
+    return static_cast<int>(this->columns.size());
 }
 
 int CDataframe::numberOfCellsEqualTo(int x)
 {
     int count = 0;
+    ColumnValue v(x);
     for (const Column& col : this->columns)
-        count += col.occurence(x);
+        count += col.occurence(v);
     return count;
 }
 
 int CDataframe::numberOfCellsGreaterThan(int x)
 {
     int count = 0;
+    ColumnValue v(x);
     for (const Column& col : this->columns)
-        count += col.numberGreaterThan(x);
+        count += col.numberGreaterThan(v);
     return count;
 }
 
 int CDataframe::numberOfCellsLowerThan(int x)
 {
     int count = 0;
+    ColumnValue v(x);
     for (const Column& col : this->columns)
-        count += col.numberLowerThan(x);
+        count += col.numberLowerThan(v);
     return count;
 }
 
 /*
- Helper 
+ Helper
 --------------------------------------------
 */
 

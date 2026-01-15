@@ -7,10 +7,10 @@ int main(int argc, char const *argv[])
 {
      // Test de la partie 4
     std::cout << "\n=== TEST PARTIE 4 - Entier ===" << std::endl;
-    Column c1 = Column("c1");
-    Column c2 = Column("c2");
-    Column c3 = Column("c3");
-    Column c4 = Column("c4");
+    Column c1 = Column("c1", ColumnType::INT);
+    Column c2 = Column("c2", ColumnType::INT);
+    Column c3 = Column("c3", ColumnType::INT);
+    Column c4 = Column("c4", ColumnType::INT);
 
     c1.insertValue(56);
     c1.insertValue(6);
@@ -50,7 +50,7 @@ int main(int argc, char const *argv[])
     // Test de la partie 6.1 et 6.2 - sort() et printSorted()
     std::cout << "\n=== TEST PARTIE 6.1 & 6.2 - SORT & PRINTSORTED ===" << std::endl;
     
-    Column col("TestSort");
+    Column col("TestSort", ColumnType::INT);
     col.insertValue(5);
     col.insertValue(2);
     col.insertValue(8);
@@ -76,7 +76,7 @@ int main(int argc, char const *argv[])
     // Test de la partie 6.3 et 6.4 - eraseIndex() et checkIndex()
     std::cout << "\n=== TEST PARTIE 6.3 & 6.4 - ERASEINDEX & CHECKINDEX ===" << std::endl;
     
-    Column col3("TestIndexManagement");
+    Column col3("TestIndexManagement", ColumnType::INT);
     
     std::cout << "Avant d'insérer des valeurs - checkIndex(): " << col3.checkIndex() << " (attendu: -1)" << std::endl;
     
@@ -107,7 +107,7 @@ int main(int argc, char const *argv[])
     // Test de la partie 6.5 - updateIndex()
     std::cout << "\n=== TEST PARTIE 6.5 - UPDATEINDEX ===" << std::endl;
     
-    Column col4("TestUpdateIndex");
+    Column col4("TestUpdateIndex", ColumnType::INT);
     col4.insertValue(10);
     col4.insertValue(5);
     col4.insertValue(15);
@@ -132,7 +132,7 @@ int main(int argc, char const *argv[])
     // Test de la partie 6.6 - searchValue()
     std::cout << "\n=== TEST PARTIE 6.6 - SEARCHVALUE ===" << std::endl;
     
-    Column col5("TestSearch");
+    Column col5("TestSearch", ColumnType::INT);
     col5.insertValue(10);
     col5.insertValue(5);
     col5.insertValue(15);
@@ -153,6 +153,23 @@ int main(int argc, char const *argv[])
     std::cout << "searchValue(25): " << col5.searchValue(25) << " (attendu: 0, non trouvé)" << std::endl;
     
     std::cout << "\n=== FIN TEST 6.6 ===" << std::endl;
+
+    std::cout << "\n=== DEBUT TEST 7 ===" << std::endl;
+
+    Column col7("TestExistAndReplace", ColumnType::STRING);
+    col7.insertValue(std::string("test1"));
+    col7.insertValue(std::string("test2"));
+    col7.insertValue(std::string("test3"));
+
+    Column col8("AnotherColumn", ColumnType::FLOAT);
+    col8.insertValue(1.5f);
+    col8.insertValue(2.5f);
+    col8.insertValue(3.5f);
+
+    CDataframe df7({col7, col8, c4});
+    df7.display();
+    df7.renameCol(&col7, "RenamedColumn");
+    df7.display();
 
     return 0;
 }
