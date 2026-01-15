@@ -154,5 +154,53 @@ int main(int argc, char const *argv[])
     
     std::cout << "\n=== FIN TEST 6.6 ===" << std::endl;
 
+    // =====================
+    // Tests Partie 8 (int-only)
+    // =====================
+    std::cout << "\n=== TEST PARTIE 8 - DATAFRAME (int-only) ===" << std::endl;
+
+    // Création via types et renommage des colonnes
+    std::vector<ColumnType> types = {ColumnType::INT, ColumnType::INT, ColumnType::INT};
+    CDataframe df(types);
+    df.setColumnNames({"A", "B", "C"});
+
+    // Insertion de lignes
+    df.insertRow(std::vector<ColumnValue>{1, 2, 3});
+    df.insertRow(std::vector<ColumnValue>{4, 5, 6});
+    df.insertRow(std::vector<ColumnValue>{7, 8, 9});
+
+    // Affichages
+    std::cout << "\nHeader:" << std::endl;
+    df.printHeader();
+    std::cout << "\nPrint complet:" << std::endl;
+    df.print();
+    std::cout << "\nHead:" << std::endl;
+    df.printHead();
+    std::cout << "\nTail:" << std::endl;
+    df.printTail();
+    std::cout << "\nInfo:" << std::endl;
+    df.info();
+
+    // Suppression de colonne par nom
+    df.deleteColumn("B");
+    std::cout << "\nAprès deleteColumn('B'), nb colonnes = " << df.getColumnsCount() << std::endl;
+    df.printHeader();
+
+    // Round-trip CSV (sur un autre DF pour garder 3 colonnes)
+    CDataframe df2(types);
+    df2.setColumnNames({"X", "Y", "Z"});
+    df2.insertRow(std::vector<ColumnValue>{10, 20, 30});
+    df2.insertRow(std::vector<ColumnValue>{40, 50, 60});
+
+    std::cout << "\nSauvegarde CSV -> df_test.csv" << std::endl;
+    df2.saveToCSV("df_test.csv");
+
+    std::cout << "Chargement CSV depuis df_test.csv" << std::endl;
+    auto df3 = CDataframe::loadFromCSV("df_test.csv", types);
+    df3->printHead();
+    std::cout << "Rows chargées: " << df3->getRowsCount() << ", Colonnes: " << df3->getColumnsCount() << std::endl;
+
+    std::cout << "\n=== FIN TEST PARTIE 8 ===" << std::endl;
+
     return 0;
 }
