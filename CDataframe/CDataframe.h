@@ -32,6 +32,13 @@ public:
     bool exist(const int val);
     bool replaceValue(const Column& col, const int index, const int newVal);
 
+    //Statistics
+    int numberOfRows();
+    int numberOfCols();
+    int numberOfCellsEqualTo(int x);
+    int numberOfCellsGreaterThan(int x);
+    int numberOfCellsLowerThan(int x);
+    
     // Helper
     int sizeBiggestCol();
 };

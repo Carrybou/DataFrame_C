@@ -239,3 +239,12 @@ bool Column::exist(const int value)
     return false;
 }
 
+bool Column::accessReplaceValue(int row, std::optional<int> newValue)
+{
+    if (row < 0 || static_cast<size_t>(row) >= this->data.size())
+        return false;
+
+    this->data[row] = newValue;
+    return true;
+}
+
