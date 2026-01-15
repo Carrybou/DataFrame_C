@@ -13,6 +13,9 @@ class CDataframe
 private:
     std::vector<std::shared_ptr<Column>> columns;
 
+    // ===== DISPLAY =====
+    void print(std::optional<int> firstRowOpt, std::optional<int> lastRowOpt, const std::vector<Column> *colOpt = nullptr);
+
 public:
     // Constructors
     CDataframe();
@@ -21,18 +24,38 @@ public:
     CDataframe(std::initializer_list<Column> cols);
     ~CDataframe();
 
-    // Partie 8 - Core Methods
-    void deleteColumn(const std::string& colName);
-    void setColumnNames(const std::vector<std::string>& names);
-    size_t getColumnsCount() const;
-    bool insertRow(const std::vector<ColumnValue>& values);
-    size_t getRowsCount() const;
-    void info() const;
+    
+    // Display
+    void display();
+    void head(std::optional<int> row = std::nullopt);
+    void tail(std::optional<int> row = std::nullopt);
+    void displayCol(const std::vector<Column>& col);
     void printHeader() const;
-    void printByLine(size_t first, size_t last) const;
-    void print() const;
-    void printHead() const;
-    void printTail() const;
+    
+    // Operation
+
+    void setColumnNames(const std::vector<std::string>& names);
+    bool insertColumns(const std::vector<Column*>& cols);
+    bool insertColumn(Column* col);
+    bool deleteColumn(const std::string& colName);
+
+    bool insertRows(const std::vector<std::vector<ColumnValue>>& rows);
+    bool insertRow(const std::vector<ColumnValue>& values);
+    bool deleteRow(const int idx);
+    bool renameCol(Column* col, const std::string& newName);
+
+    bool exist(const int val);
+    bool replaceValue(const Column& col, const int index, const int newVal);
+    
+    //Statistics & Info
+    size_t getColumnsCount() const;
+    size_t getRowsCount() const;
+    int numberOfRows();
+    int numberOfCols();
+    int numberOfCellsEqualTo(int x);
+    int numberOfCellsGreaterThan(int x);
+    int numberOfCellsLowerThan(int x);
+    void info() const;
 
     // CSV Methods
     static std::unique_ptr<CDataframe> loadFromCSV(
@@ -41,27 +64,6 @@ public:
     );
     static std::unique_ptr<CDataframe> loadFromCSVAuto(const std::string& filename);
     void saveToCSV(const std::string& filename) const;
-
-    // Legacy Methods (keeping for compatibility)
-    void display();
-    void head(std::optional<int> row = std::nullopt);
-    void tail(std::optional<int> row = std::nullopt);
-    void displayCol(const std::vector<std::shared_ptr<Column>>& col);
-
-    bool addCol(Column *col);
-    bool rmCol(Column *col);
-    bool addRow(const std::vector<int>& row);
-    bool rmRow(const int idx);
-    bool renameCol(Column* col, const std::string& newName);
-    bool exist(const int val);
-    bool replaceValue(const Column& col, const int index, const int newVal);
-
-    //Statistics
-    int numberOfRows();
-    int numberOfCols();
-    int numberOfCellsEqualTo(int x);
-    int numberOfCellsGreaterThan(int x);
-    int numberOfCellsLowerThan(int x);
     
     // Helper
     int sizeBiggestCol();

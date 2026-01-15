@@ -35,9 +35,9 @@ int main(int argc, char const *argv[])
 
     CDataframe cd = CDataframe({c1, c2, c3, c4});
 
-    cd.rmCol(&c2);
+    cd.deleteColumn("c3");
 
-    cd.addCol(&c2);
+    cd.insertColumn(&c2);
 
     cd.renameCol(&c2, "test");
 
@@ -165,6 +165,7 @@ int main(int argc, char const *argv[])
     col8.insertValue(1.5f);
     col8.insertValue(2.5f);
     col8.insertValue(3.5f);
+    col8.insertValue(4.5f);
 
     CDataframe df7({col7, col8, c4});
     df7.display();
@@ -190,11 +191,11 @@ int main(int argc, char const *argv[])
     std::cout << "\nHeader:" << std::endl;
     df.printHeader();
     std::cout << "\nPrint complet:" << std::endl;
-    df.print();
+    df.display();
     std::cout << "\nHead:" << std::endl;
-    df.printHead();
+    df.head();
     std::cout << "\nTail:" << std::endl;
-    df.printTail();
+    df.tail();
     std::cout << "\nInfo:" << std::endl;
     df.info();
 
@@ -214,7 +215,7 @@ int main(int argc, char const *argv[])
 
     std::cout << "Chargement CSV depuis df_test.csv" << std::endl;
     auto df3 = CDataframe::loadFromCSV("df_test.csv", types);
-    df3->printHead();
+    df3->head();
     std::cout << "Rows chargées: " << df3->getRowsCount() << ", Colonnes: " << df3->getColumnsCount() << std::endl;
 
     std::cout << "\n=== FIN TEST PARTIE 8 ===" << std::endl;

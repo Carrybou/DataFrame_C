@@ -14,7 +14,6 @@ CDataframe::CDataframe()
 
 CDataframe::CDataframe(const std::vector<ColumnType>& types)
 {
-    // Create columns with specified types
     for (size_t i = 0; i < types.size(); ++i) {
         auto col = std::make_shared<Column>("col_" + std::to_string(i), types[i]);
         this->columns.push_back(col);
@@ -32,12 +31,10 @@ CDataframe::CDataframe(const std::vector<Column> &cols)
 CDataframe::CDataframe(std::initializer_list<Column> cols)
 {
     int maxSize = 0;
-    // Find the largest column size
     for (const auto& c : cols) {
         maxSize = std::max(maxSize, c.getSize());
     }
     
-    // Add columns with padding
     for (const auto& c : cols) {
         auto shared_col = std::make_shared<Column>(c);
         this->columns.push_back(shared_col);
@@ -48,16 +45,91 @@ CDataframe::~CDataframe()
 {
 }
 
-// ===== PART 8 - CORE METHODS =====
+// ===== DISPLAY =====
 
-void CDataframe::deleteColumn(const std::string& colName)
+void CDataframe::print(std::optional<int> firstRowOpt, std::optional<int> lastRowOpt, const std::vector<Column>* colOpt)
 {
-    for (auto it = this->columns.begin(); it != this->columns.end(); ++it) {
-        if ((*it)->getName() == colName) {
-            this->columns.erase(it);
-            return;
+    const int total = this->sizeBiggestCol();
+    const int firstRow = firstRowOpt.has_value() ? std::max(0, total - firstRowOpt.value()) : 0;
+    const int lastRow  = lastRowOpt.has_value()  ? std::min(total, lastRowOpt.value())      : total;
+
+    const auto& cols = colOpt ? *colOpt : [this]() -> std::vector<Column> {
+        std::vector<Column> v;
+        for (const auto& c : this->columns) {
+            v.push_back(*c);
         }
+        return v;
+    }();
+
+    // r=0 => header, r>=1 => data row r-1
+    for (int r = 0; r < (lastRow - firstRow) + 2; ++r) {
+        if (r == 0) {
+            std::cout << "[H] ";
+            for (const Column& c : cols) {
+                std::cout << c.getName() << " ";
+            }
+            std::cout << "\n\n";
+            continue;
+        }
+
+        const int row = firstRow + (r - 1);
+        if (row >= total) break;
+
+        std::cout << "[" << row << "] ";
+        for (const Column& c : cols) {
+            auto v = c.getValueAt(row); // optional<ColumnValue>
+            if (v.has_value())
+                std::cout << c.valueToString(static_cast<size_t>(row));
+            else
+                std::cout << "NULL";
+            std::cout << " ";
+        }
+        std::cout << "\n\n";
     }
+}
+
+void CDataframe::display()
+{
+    print(std::nullopt, std::nullopt, nullptr);
+}
+
+void CDataframe::tail(std::optional<int> rowOpt)
+{
+    print(rowOpt.value_or(5), std::nullopt, nullptr);
+}
+
+void CDataframe::head(std::optional<int> rowOpt)
+{
+    print(std::nullopt, rowOpt.value_or(5), nullptr);
+}
+
+void CDataframe::displayCol(const std::vector<Column>& col)
+{
+    print(std::nullopt, std::nullopt, &col);
+}
+
+void CDataframe::printHeader() const
+{
+    for (size_t i = 0; i < this->columns.size(); ++i) {
+        std::cout << this->columns[i]->getName();
+        if (i < this->columns.size() - 1) std::cout << ",";
+    }
+    std::cout << std::endl;
+}
+
+// ===== OPERATION =====
+
+bool CDataframe::deleteColumn(const std::string& colName)
+{
+    auto it = std::remove_if(this->columns.begin(), this->columns.end(),
+                             [&colName](const std::shared_ptr<Column>& col) {
+                                 return col->getName() == colName;
+                             });
+    if (it != this->columns.end()) {
+        this->columns.erase(it, this->columns.end());
+        return true;
+    }
+    return false;
 }
 
 void CDataframe::setColumnNames(const std::vector<std::string>& names)
@@ -67,9 +139,39 @@ void CDataframe::setColumnNames(const std::vector<std::string>& names)
     }
 }
 
-size_t CDataframe::getColumnsCount() const
+bool CDataframe::insertColumns(const std::vector<Column*>& cols)
 {
-    return this->columns.size();
+    for (const auto& col : cols) {
+        if (col == nullptr) {
+            return false;
+        }
+        auto shared_col = std::make_shared<Column>(*col);
+        this->columns.push_back(shared_col);
+    }
+    return true;
+}
+
+bool CDataframe::insertColumn(Column* col)
+{
+    if (col == nullptr) {
+        return false;
+    }
+    auto shared_col = std::make_shared<Column>(*col);
+    this->columns.push_back(shared_col);
+    return true;
+}
+
+bool CDataframe::insertRows(const std::vector<std::vector<ColumnValue>>& rows)
+{
+    for (const auto& row : rows) {
+        if (row.size() != this->columns.size()) {
+            return false;
+        }
+        for (size_t i = 0; i < row.size(); ++i) {
+            this->columns[i]->insertValue(row[i]);
+        }
+    }
+    return true;
 }
 
 bool CDataframe::insertRow(const std::vector<ColumnValue>& values)
@@ -83,6 +185,56 @@ bool CDataframe::insertRow(const std::vector<ColumnValue>& values)
     }
 
     return true;
+}
+
+bool CDataframe::deleteRow(const int idx)
+{
+    if (idx < 0 || idx >= this->sizeBiggestCol())
+        return false;
+
+    for (size_t i = 0; i < this->columns.size(); ++i) {
+        this->columns[i]->removeValue(idx);
+    }
+
+    return true;
+}
+
+bool CDataframe::renameCol(Column* col, const std::string& newName)
+{
+    for (size_t i = 0; i < this->columns.size(); ++i) {
+        if (this->columns[i]->getName() == col->getName()) {
+            return this->columns[i]->setName(newName);
+        }
+    }
+    return false;
+}
+
+bool CDataframe::exist(const int val)
+{
+    for (size_t i = 0; i < this->columns.size(); ++i) {
+        if (this->columns[i]->occurence(static_cast<int32_t>(val)) > 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool CDataframe::replaceValue(const Column& col, const int index, const int newVal)
+{
+    for (size_t i = 0; i < this->columns.size(); ++i) {
+        if (this->columns[i]->getName() == col.getName()) {
+            return this->columns[i]->accessReplaceValue(index, static_cast<int32_t>(newVal));
+        }
+    }
+    return false;
+}
+
+// ===== STATISTICS & INFO =====
+
+size_t CDataframe::getColumnsCount() const
+{
+    return this->columns.size();
 }
 
 size_t CDataframe::getRowsCount() const
@@ -105,64 +257,41 @@ void CDataframe::info() const
     }
 }
 
-void CDataframe::printHeader() const
+int CDataframe::numberOfRows()
 {
-    for (size_t i = 0; i < this->columns.size(); ++i) {
-        std::cout << this->columns[i]->getName();
-        if (i < this->columns.size() - 1) std::cout << ",";
-    }
-    std::cout << std::endl;
+    return static_cast<int>(this->getRowsCount());
 }
 
-void CDataframe::printByLine(size_t first, size_t last) const
+int CDataframe::numberOfCols()
 {
-    size_t rows = this->getRowsCount();
-    
-    if (first > last || first >= rows) {
-        return;
-    }
-    
-    if (last > rows) {
-        last = rows;
-    }
-
-    // Print header
-    this->printHeader();
-
-    // Print rows
-    for (size_t row = first; row < last; ++row) {
-        for (size_t col = 0; col < this->columns.size(); ++col) {
-            auto val = this->columns[col]->getValueAt(row);
-            if (val) {
-                std::cout << this->columns[col]->valueToString(row);
-            } else {
-                std::cout << "NULL";
-            }
-            if (col < this->columns.size() - 1) std::cout << ",";
-        }
-        std::cout << std::endl;
-    }
+    return static_cast<int>(this->getColumnsCount());
 }
 
-void CDataframe::print() const
+int CDataframe::numberOfCellsEqualTo(int x)
 {
-    this->printByLine(0, this->getRowsCount());
-}
-
-void CDataframe::printHead() const
-{
-    size_t rows = std::min((size_t)10, this->getRowsCount());
-    this->printByLine(0, rows);
-}
-
-void CDataframe::printTail() const
-{
-    size_t rows = this->getRowsCount();
-    if (rows <= 10) {
-        this->printByLine(0, rows);
-    } else {
-        this->printByLine(rows - 10, rows);
+    int count = 0;
+    for (const auto& col : this->columns) {
+        count += col->occurence(static_cast<int32_t>(x));
     }
+    return count;
+}
+
+int CDataframe::numberOfCellsGreaterThan(int x)
+{
+    int count = 0;
+    for (const auto& col : this->columns) {
+        count += col->numberGreaterThan(static_cast<int32_t>(x));
+    }
+    return count;
+}
+
+int CDataframe::numberOfCellsLowerThan(int x)
+{
+    int count = 0;
+    for (const auto& col : this->columns) {
+        count += col->numberLowerThan(static_cast<int32_t>(x));
+    }
+    return count;
 }
 
 // ===== CSV METHODS =====
@@ -179,7 +308,6 @@ std::unique_ptr<CDataframe> CDataframe::loadFromCSV(
     auto df = std::make_unique<CDataframe>(types);
     std::string line;
 
-    // Read header
     if (std::getline(file, line)) {
         std::vector<std::string> headers;
         std::stringstream ss(line);
@@ -233,7 +361,6 @@ std::unique_ptr<CDataframe> CDataframe::loadFromCSV(
 
 std::unique_ptr<CDataframe> CDataframe::loadFromCSVAuto(const std::string& filename)
 {
-    // TODO: Implement automatic type detection
     std::vector<ColumnType> types = {ColumnType::INT};
     return loadFromCSV(filename, types);
 }
@@ -245,14 +372,12 @@ void CDataframe::saveToCSV(const std::string& filename) const
         throw std::runtime_error("Cannot create file: " + filename);
     }
 
-    // Write header
     for (size_t i = 0; i < this->columns.size(); ++i) {
         file << this->columns[i]->getName();
         if (i < this->columns.size() - 1) file << ",";
     }
     file << "\n";
 
-    // Write data
     for (size_t row = 0; row < this->getRowsCount(); ++row) {
         for (size_t col = 0; col < this->columns.size(); ++col) {
             auto val = this->columns[col]->getValueAt(row);
@@ -269,142 +394,7 @@ void CDataframe::saveToCSV(const std::string& filename) const
     file.close();
 }
 
-// ===== LEGACY METHODS =====
-
-void CDataframe::display()
-{
-    this->print();
-}
-
-void CDataframe::head(std::optional<int> rowOpt)
-{
-    int rows = rowOpt.value_or(10);
-    this->printByLine(0, rows);
-}
-
-void CDataframe::tail(std::optional<int> rowOpt)
-{
-    int rows = rowOpt.value_or(10);
-    size_t total = this->getRowsCount();
-    if ((size_t)rows >= total) {
-        this->printByLine(0, total);
-    } else {
-        this->printByLine(total - rows, total);
-    }
-}
-
-void CDataframe::displayCol(const std::vector<std::shared_ptr<Column>>& col)
-{
-    // Print header
-    for (const auto& c : col) {
-        std::cout << c->getName() << " ";
-    }
-    std::cout << std::endl;
-
-    // Print data
-    size_t max_rows = 0;
-    for (const auto& c : col) {
-        max_rows = std::max(max_rows, (size_t)c->getSize());
-    }
-
-    for (size_t row = 0; row < max_rows; ++row) {
-        for (const auto& c : col) {
-            auto val = c->getValueAt(row);
-            if (val) {
-                std::cout << c->valueToString(row);
-            } else {
-                std::cout << "NULL";
-            }
-            std::cout << " ";
-        }
-        std::cout << std::endl;
-    }
-}
-
-bool CDataframe::addCol(Column *col)
-{
-    if (col == nullptr) return false;
-    auto shared_col = std::make_shared<Column>(*col);
-    this->columns.push_back(shared_col);
-    return true;
-}
-
-bool CDataframe::rmCol(Column *optCol)
-{
-    if (optCol == nullptr) return false;
-
-    for (auto it = this->columns.begin(); it != this->columns.end(); ) {
-        if ((*it)->getName() == optCol->getName())
-            it = this->columns.erase(it);
-        else
-            ++it;
-    }
-
-    return true;
-}
-
-bool CDataframe::addRow(const std::vector<int>& row)
-{
-    if (row.size() > this->columns.size() || row.empty())
-        return false;
-
-    for (size_t i = 0; i < this->columns.size(); ++i) {
-        if (i >= row.size())
-            this->columns[i]->insertValue(std::monostate{});
-        else
-            this->columns[i]->insertValue(static_cast<int32_t>(row[i]));
-    }
-
-    return true;
-}
-
-bool CDataframe::rmRow(const int idx)
-{
-    if (idx < 0 || idx >= this->sizeBiggestCol())
-        return false;
-
-    for (size_t i = 0; i < this->columns.size(); ++i) {
-        this->columns[i]->removeValue(idx);
-    }
-
-    return true;
-}
-
-bool CDataframe::renameCol(Column* col, const std::string& newName)
-{
-    if (col == nullptr || newName.empty()) return false;
-
-    for (size_t i = 0; i < this->columns.size(); ++i) {
-        if (this->columns[i]->getName() == col->getName()) {
-            this->columns[i]->setName(newName);
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool CDataframe::exist(const int val)
-{
-    for (size_t i = 0; i < this->columns.size(); ++i) {
-        if (this->columns[i]->occurence(static_cast<int32_t>(val)) > 0) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool CDataframe::replaceValue(const Column& col, const int index, const int newVal)
-{
-    // Find column by name and call accessReplaceValue
-    for (size_t i = 0; i < this->columns.size(); ++i) {
-        if (this->columns[i]->getName() == col.getName()) {
-            return this->columns[i]->accessReplaceValue(index, static_cast<int32_t>(newVal));
-        }
-    }
-    return false;
-}
+// ===== HELPER =====
 
 int CDataframe::sizeBiggestCol()
 {
