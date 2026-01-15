@@ -5,9 +5,7 @@
 
 #include "CDataframe.h"
 
-// ===== CONSTRUCTORS =====
-
-CDataframe::CDataframe() 
+CDataframe::CDataframe()
 {
     this->columns = std::vector<std::shared_ptr<Column>>();
 }
@@ -16,7 +14,7 @@ CDataframe::CDataframe(const std::vector<ColumnType>& types)
 {
     // Create columns with specified types
     for (size_t i = 0; i < types.size(); ++i) {
-        auto col = std::make_shared<Column>("col_" + std::to_string(i), types[i]);
+        auto col = std::make_shared<Column>("col_" + std::to_string(i));
         this->columns.push_back(col);
     }
 }
@@ -32,23 +30,16 @@ CDataframe::CDataframe(const std::vector<Column> &cols)
 CDataframe::CDataframe(std::initializer_list<Column> cols)
 {
     int maxSize = 0;
-    // Find the largest column size
-    for (const auto& c : cols) {
-        maxSize = std::max(maxSize, c.getSize());
-    }
-    
-    // Add columns with padding
-    for (const auto& c : cols) {
-        auto shared_col = std::make_shared<Column>(c);
-        this->columns.push_back(shared_col);
-    }
+    for (const auto& c : columns) maxSize = std::max(maxSize, c.getSize());
+    for (auto& c : columns)
+        while (c.getSize() < maxSize) c.insertValue(std::nullopt); // insert NULL
 }
 
 CDataframe::~CDataframe()
 {
 }
 
-// ===== PART 8 - CORE METHODS =====
+
 
 void CDataframe::deleteColumn(const std::string& colName)
 {
@@ -74,12 +65,47 @@ size_t CDataframe::getColumnsCount() const
 
 bool CDataframe::insertRow(const std::vector<ColumnValue>& values)
 {
+    // MIN FIX: logique de firstRow (ton calcul sizeBiggestCol() - firstRowOpt était bizarre)
+    // Ici: firstRowOpt = nombre de lignes à afficher depuis la fin (tail)
+    const int total = this->sizeBiggestCol();
+    const int firstRow = firstRowOpt.has_value() ? std::max(0, total - firstRowOpt.value()) : 0;
+    const int lastRow  = lastRowOpt.has_value()  ? std::min(total, lastRowOpt.value())      : total;
+
+    const auto& cols = colOpt ? *colOpt : this->columns;
+
+    // r=0 => header, r>=1 => data row r-1
+    for (int r = 0; r < (lastRow - firstRow) + 2; ++r) {
+        if (r == 0) {
+            std::cout << "[H] ";
+            for (const Column& c : cols) {
+                std::cout << c.getName() << " ";
+            }
+            std::cout << "\n\n";
+            continue;
+        }
+
+        const int row = firstRow + (r - 1);
+        if (row >= total) break;
+
+        std::cout << "[" << row << "] ";
+        for (const Column& c : cols) {
+            auto v = c.getValueAt(row); // optional<ColumnValue>
+            if (v.has_value())
+                std::cout << c.valueToString(static_cast<size_t>(row));
+            else
+                std::cout << "NULL";
+            std::cout << " ";
+        }
+        std::cout << "\n\n";
     if (values.size() != this->columns.size()) {
         return false;
     }
 
     for (size_t i = 0; i < values.size(); ++i) {
-        this->columns[i]->insertValue(values[i]);
+        
+        if (std::holds_alternative<int>(values[i])) {
+            this->columns[i]->insertValue(std::get<int>(values[i]));
+        }
     }
 
     return true;
@@ -134,7 +160,7 @@ void CDataframe::printByLine(size_t first, size_t last) const
         for (size_t col = 0; col < this->columns.size(); ++col) {
             auto val = this->columns[col]->getValueAt(row);
             if (val) {
-                std::cout << this->columns[col]->valueToString(row);
+                std::cout << *val;
             } else {
                 std::cout << "NULL";
             }
@@ -165,7 +191,6 @@ void CDataframe::printTail() const
     }
 }
 
-// ===== CSV METHODS =====
 
 std::unique_ptr<CDataframe> CDataframe::loadFromCSV(
     const std::string& filename,
@@ -201,7 +226,7 @@ std::unique_ptr<CDataframe> CDataframe::loadFromCSV(
             try {
                 switch (types[col_idx]) {
                     case ColumnType::INT:
-                        values.push_back(static_cast<int32_t>(std::stoi(value)));
+                        values.push_back(std::stoi(value));
                         break;
                     case ColumnType::DOUBLE:
                         values.push_back(std::stod(value));
@@ -210,14 +235,11 @@ std::unique_ptr<CDataframe> CDataframe::loadFromCSV(
                         values.push_back(value);
                         break;
                     case ColumnType::CHAR:
-                        values.push_back(value.empty() ? ' ' : value[0]);
-                        break;
-                    default:
-                        values.push_back(std::monostate{});
+                        values.push_back(value[0]);
                         break;
                 }
             } catch (...) {
-                values.push_back(std::monostate{});
+                values.push_back(0); 
             }
             col_idx++;
         }
@@ -233,7 +255,6 @@ std::unique_ptr<CDataframe> CDataframe::loadFromCSV(
 
 std::unique_ptr<CDataframe> CDataframe::loadFromCSVAuto(const std::string& filename)
 {
-    // TODO: Implement automatic type detection
     std::vector<ColumnType> types = {ColumnType::INT};
     return loadFromCSV(filename, types);
 }
@@ -257,7 +278,7 @@ void CDataframe::saveToCSV(const std::string& filename) const
         for (size_t col = 0; col < this->columns.size(); ++col) {
             auto val = this->columns[col]->getValueAt(row);
             if (val) {
-                file << this->columns[col]->valueToString(row);
+                file << *val;
             } else {
                 file << "NULL";
             }
@@ -269,7 +290,7 @@ void CDataframe::saveToCSV(const std::string& filename) const
     file.close();
 }
 
-// ===== LEGACY METHODS =====
+
 
 void CDataframe::display()
 {
@@ -311,7 +332,7 @@ void CDataframe::displayCol(const std::vector<std::shared_ptr<Column>>& col)
         for (const auto& c : col) {
             auto val = c->getValueAt(row);
             if (val) {
-                std::cout << c->valueToString(row);
+                std::cout << *val;
             } else {
                 std::cout << "NULL";
             }
@@ -329,7 +350,7 @@ bool CDataframe::addCol(Column *col)
     return true;
 }
 
-bool CDataframe::rmCol(Column *optCol)
+bool CDataframe::rmCol(Column* optCol)
 {
     if (optCol == nullptr) return false;
 
@@ -345,14 +366,16 @@ bool CDataframe::rmCol(Column *optCol)
 
 bool CDataframe::addRow(const std::vector<int>& row)
 {
-    if (row.size() > this->columns.size() || row.empty())
+    if (row.empty() || row.size() > this->columns.size())
         return false;
 
-    for (size_t i = 0; i < this->columns.size(); ++i) {
+    // MIN FIX: le return true était dans la boucle => ça sortait au 1er élément
+    for (size_t i = 0; i < this->columns.size(); i++)
+    {
         if (i >= row.size())
-            this->columns[i]->insertValue(std::monostate{});
+            this->columns[i]->insertValue(0);
         else
-            this->columns[i]->insertValue(static_cast<int32_t>(row[i]));
+            this->columns.at(i).insertValue(ColumnValue(row[i])); // conversion explicite
     }
 
     return true;
@@ -363,8 +386,10 @@ bool CDataframe::rmRow(const int idx)
     if (idx < 0 || idx >= this->sizeBiggestCol())
         return false;
 
-    for (size_t i = 0; i < this->columns.size(); ++i) {
-        this->columns[i]->removeValue(idx);
+    // MIN FIX: return true était dans la boucle => ça supprimait que dans la 1ère colonne
+    for (size_t i = 0; i < this->columns.size(); i++)
+    {
+        this->columns.at(i).removeValue(idx);
     }
 
     return true;
@@ -387,7 +412,7 @@ bool CDataframe::renameCol(Column* col, const std::string& newName)
 bool CDataframe::exist(const int val)
 {
     for (size_t i = 0; i < this->columns.size(); ++i) {
-        if (this->columns[i]->occurence(static_cast<int32_t>(val)) > 0) {
+        if (this->columns[i]->occurence(val) > 0) {
             return true;
         }
     }
@@ -397,14 +422,90 @@ bool CDataframe::exist(const int val)
 
 bool CDataframe::replaceValue(const Column& col, const int index, const int newVal)
 {
-    // Find column by name and call accessReplaceValue
-    for (size_t i = 0; i < this->columns.size(); ++i) {
-        if (this->columns[i]->getName() == col.getName()) {
-            return this->columns[i]->accessReplaceValue(index, static_cast<int32_t>(newVal));
+    for (size_t i = 0; i < this->columns.size(); i++)
+    {
+        if (this->columns.at(i).exist(val))
+        {
+            return true;
         }
+    }
+
+    return false;
+}
+
+bool CDataframe::replaceValue(const Column& col, const int index, const int newVal)
+{
+    // Avec ta nouvelle Column, exist prend ColumnValue
+    ColumnValue v(val);
+
+    for (size_t i = 0; i < this->columns.size(); i++)
+    {
+        if (this->columns.at(i).exist(v))
+            return true;
     }
     return false;
 }
+
+bool CDataframe::replaceValue(const Column& col, const int index, const int newVal)
+{
+    for (size_t i = 0; i < this->columns.size(); i++)
+    {
+        if (this->columns.at(i).getName() == col.getName())
+        {
+            // ta Column attend optional<ColumnValue>
+            return this->columns.at(i).accessReplaceValue(index, ColumnValue(newVal));
+        }
+    }
+
+    return false;
+}
+
+/*
+ Statistics
+--------------------------------------------
+*/
+
+int CDataframe::numberOfRows()
+{
+    return this->sizeBiggestCol();
+}
+
+int CDataframe::numberOfCols()
+{
+    return static_cast<int>(this->columns.size());
+}
+
+int CDataframe::numberOfCellsEqualTo(int x)
+{
+    int count = 0;
+    ColumnValue v(x);
+    for (const Column& col : this->columns)
+        count += col.occurence(v);
+    return count;
+}
+
+int CDataframe::numberOfCellsGreaterThan(int x)
+{
+    int count = 0;
+    ColumnValue v(x);
+    for (const Column& col : this->columns)
+        count += col.numberGreaterThan(v);
+    return count;
+}
+
+int CDataframe::numberOfCellsLowerThan(int x)
+{
+    int count = 0;
+    ColumnValue v(x);
+    for (const Column& col : this->columns)
+        count += col.numberLowerThan(v);
+    return count;
+}
+
+/*
+ Helper
+--------------------------------------------
+*/
 
 int CDataframe::sizeBiggestCol()
 {
