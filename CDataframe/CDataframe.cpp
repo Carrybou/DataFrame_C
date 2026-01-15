@@ -393,9 +393,73 @@ bool CDataframe::exist(const int val)
 
 bool CDataframe::replaceValue(const Column& col, const int index, const int newVal)
 {
-    // TODO: Implement
+    for (size_t i = 0; i < this->columns.size(); i++)
+    {
+        if (this->columns.at(i).exist(val))
+        {
+            return true;
+        }
+    }
+
     return false;
 }
+
+bool CDataframe::replaceValue(const Column& col, const int index, const int newVal)
+{
+    for (size_t i = 0; i < this->columns.size(); i++)
+    {
+        if (this->columns.at(i).getName() == col.getName())
+        {
+            return this->columns.at(i).accessReplaceValue(index, newVal);
+        }
+    }
+
+    return false;
+}
+
+/*
+Statistics 
+--------------------------------------------
+*/
+
+int CDataframe::numberOfRows()
+{
+    return this->sizeBiggestCol();
+}
+
+int CDataframe::numberOfCols()
+{
+    return this->columns.size();
+}
+
+int CDataframe::numberOfCellsEqualTo(int x)
+{
+    int count = 0;
+    for (const Column& col : this->columns)
+        count += col.occurence(x);
+    return count;
+}
+
+int CDataframe::numberOfCellsGreaterThan(int x)
+{
+    int count = 0;
+    for (const Column& col : this->columns)
+        count += col.numberGreaterThan(x);
+    return count;
+}
+
+int CDataframe::numberOfCellsLowerThan(int x)
+{
+    int count = 0;
+    for (const Column& col : this->columns)
+        count += col.numberLowerThan(x);
+    return count;
+}
+
+/*
+ Helper 
+--------------------------------------------
+*/
 
 int CDataframe::sizeBiggestCol()
 {

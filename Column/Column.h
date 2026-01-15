@@ -153,6 +153,14 @@ public:
      * @return true if the value exist, false otherwise
      */
     bool exist(const int value);
+
+    /**
+     * @brief Access/replace the value located in a cell of the column using its row number
+     * @param row The row number
+     * @param newValue The new value to set
+     * @return true if the value was successfully replaced, false otherwise
+     */
+    bool accessReplaceValue(int row, std::optional<int> newValue);
 };
 
 #endif
