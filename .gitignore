@@ -53,3 +53,7 @@ Makefile
 # Misc
 *.log
 .env
+
+# Doxygen
+docs/
+Doxyfile
