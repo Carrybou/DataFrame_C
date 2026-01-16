@@ -174,6 +174,14 @@ public:
     * @return: String representation of the value
     */
     std::string valueToString(size_t i) const;
+    
+    /*
+    * @brief Insert a value into the column, automatically handling type conversion.
+    * @param v The value to insert.
+    * @return true if insertion succeeded, false otherwise.
+    */
+    bool insertValueAuto(const ColumnValue &v);
 };
+
 
 #endif

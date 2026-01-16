@@ -1,13 +1,18 @@
+// ========================= Column.cpp =========================
 #include <iostream>
 #include <optional>
 #include <variant>
 #include <numeric>
 #include <type_traits>
 #include <algorithm>
+#include <any>
+#include <limits>
+#include <cstdint>
 
 #include "Column.h"
 
-Column::Column(const std::string& colName, ColumnType type){
+Column::Column(const std::string& colName, ColumnType type)
+{
     this->title = colName;
     this->columnType = type;
     this->data = std::vector<std::optional<ColumnValue>>();
@@ -79,7 +84,9 @@ bool Column::insertValue(std::optional<ColumnValue> value)
                 return false;
         }
     }
+
     data.push_back(value);
+    validIndex = false;
     return true;
 }
 
@@ -133,25 +140,19 @@ void Column::display() const
     }
 }
 
-/* -------------------- MIN FIX: comparisons -------------------- */
+/* -------------------- comparisons -------------------- */
 
-// Compare two ColumnValue (same variant type OR both numeric)
 static int compareColumnValues(const ColumnValue& a, const ColumnValue& b)
 {
-    // Compare via visitor to avoid variant < > (std::any is not comparable)
     return std::visit(
         [](auto&& va, auto&& vb) -> int {
             using A = std::decay_t<decltype(va)>;
             using B = std::decay_t<decltype(vb)>;
 
-            // NULL handling (monostate)
-            if constexpr (std::is_same_v<A, std::monostate> && std::is_same_v<B, std::monostate>) {
-                return 0;
-            } else if constexpr (std::is_same_v<A, std::monostate>) {
-                return -1;
-            } else if constexpr (std::is_same_v<B, std::monostate>) {
-                return 1;
-            }
+            // NULL handling
+            if constexpr (std::is_same_v<A, std::monostate> && std::is_same_v<B, std::monostate>) return 0;
+            if constexpr (std::is_same_v<A, std::monostate>) return -1;
+            if constexpr (std::is_same_v<B, std::monostate>) return 1;
 
             // string vs string
             if constexpr (std::is_same_v<A, std::string> && std::is_same_v<B, std::string>) {
@@ -160,12 +161,12 @@ static int compareColumnValues(const ColumnValue& a, const ColumnValue& b)
                 return 0;
             }
 
-            // any is not comparable -> deterministic fallback
+            // any is not comparable
             if constexpr (std::is_same_v<A, std::any> || std::is_same_v<B, std::any>) {
-                return 0; // "equal" for sorting purposes between anys
+                return 0;
             }
 
-            // numeric vs numeric (all arithmetic except bool)
+            // numeric vs numeric
             if constexpr (std::is_arithmetic_v<A> && std::is_arithmetic_v<B>) {
                 long double da = static_cast<long double>(va);
                 long double db = static_cast<long double>(vb);
@@ -174,7 +175,7 @@ static int compareColumnValues(const ColumnValue& a, const ColumnValue& b)
                 return 0;
             }
 
-            // incompatible types -> deterministic fallback
+            // incompatible
             return 0;
         },
         a, b
@@ -183,51 +184,38 @@ static int compareColumnValues(const ColumnValue& a, const ColumnValue& b)
 
 int Column::occurence(const ColumnValue& value) const
 {
-    if(this->data.empty())
-        return 0;
+    if (this->data.empty()) return 0;
 
     int cnt = 0;
     for (int i = 0; i < this->getSize(); i++)
-    {
         if (this->data[i].has_value() && compareColumnValues(this->data[i].value(), value) == 0)
             cnt++;
-    }
 
     return cnt;
 }
 
 int Column::numberGreaterThan(const ColumnValue& value) const
 {
-    if(this->data.empty())
-        return 0;
-
-    if(this->columnType == ColumnType::STRING || this->columnType == ColumnType::OBJECT)
-        return 0;
+    if (this->data.empty()) return 0;
+    if (this->columnType == ColumnType::STRING || this->columnType == ColumnType::OBJECT) return 0;
 
     int cnt = 0;
     for (int i = 0; i < this->getSize(); i++)
-    {
         if (this->data[i].has_value() && compareColumnValues(this->data[i].value(), value) > 0)
             cnt++;
-    }
 
     return cnt;
 }
 
 int Column::numberLowerThan(const ColumnValue& value) const
 {
-    if(this->data.empty())
-        return 0;
-
-    if(this->columnType == ColumnType::STRING || this->columnType == ColumnType::OBJECT)
-        return 0;
+    if (this->data.empty()) return 0;
+    if (this->columnType == ColumnType::STRING || this->columnType == ColumnType::OBJECT) return 0;
 
     int cnt = 0;
     for (int i = 0; i < this->getSize(); i++)
-    {
         if (this->data[i].has_value() && compareColumnValues(this->data[i].value(), value) < 0)
             cnt++;
-    }
 
     return cnt;
 }
@@ -246,7 +234,6 @@ void Column::sort(bool ascending)
 
     std::sort(this->index.begin(), this->index.end(),
         [this, ascending](size_t a, size_t b) {
-
             const bool aNull = !this->data[a].has_value();
             const bool bNull = !this->data[b].has_value();
 
@@ -257,7 +244,7 @@ void Column::sort(bool ascending)
                 return aNull && !bNull;
             }
 
-            int cmp = this->compareValues(this->data[a].value(), this->data[b].value());
+            int cmp = compareColumnValues(this->data[a].value(), this->data[b].value());
             return ascending ? (cmp < 0) : (cmp > 0);
         });
 
@@ -267,9 +254,8 @@ void Column::sort(bool ascending)
 
 void Column::printSorted(bool ascending)
 {
-    if (!this->validIndex || this->sortAscending != ascending) {
+    if (!this->validIndex || this->sortAscending != ascending)
         this->sort(ascending);
-    }
 
     for (size_t i = 0; i < this->index.size(); i++) {
         size_t idx = this->index[i];
@@ -278,7 +264,7 @@ void Column::printSorted(bool ascending)
             std::cout << this->valueToString(idx);
         else
             std::cout << "NULL";
-        std::cout << std::endl;
+        std::cout << "\n";
     }
 }
 
@@ -296,18 +282,13 @@ int Column::checkIndex() const
 
 void Column::updateIndex()
 {
-    if (this->index.empty()) {
-        this->sort(true);
-    } else {
-        this->sort(this->sortAscending);
-    }
+    if (this->index.empty()) this->sort(true);
+    else this->sort(this->sortAscending);
 }
 
 int Column::searchValue(const ColumnValue& val) const
 {
-    if (!this->validIndex) {
-        return -1;
-    }
+    if (!this->validIndex) return -1;
 
     size_t left = 0;
     size_t right = this->index.size();
@@ -316,23 +297,16 @@ int Column::searchValue(const ColumnValue& val) const
         size_t mid = left + (right - left) / 2;
         size_t idx = this->index[mid];
 
-        // Skip NULL
         if (!this->data[idx].has_value()) {
-            // NULL zone is grouped by sort() logic, so we can shrink accordingly
             if (this->sortAscending) right = mid;
             else left = mid + 1;
             continue;
         }
 
-        int comparison = this->compareValues(this->data[idx].value(), val);
-
-        if (comparison == 0) {
-            return 1;
-        } else if (comparison < 0) {
-            left = mid + 1;
-        } else {
-            right = mid;
-        }
+        int cmp = compareColumnValues(this->data[idx].value(), val);
+        if (cmp == 0) return 1;
+        if (cmp < 0) left = mid + 1;
+        else right = mid;
     }
 
     return 0;
@@ -340,18 +314,15 @@ int Column::searchValue(const ColumnValue& val) const
 
 bool Column::exist(const ColumnValue& value)
 {
-    // minimal fix: if not sorted, fallback linear search
     if (!this->validIndex) {
-        for (const auto& cell : data) {
+        for (const auto& cell : data)
             if (cell.has_value() && compareColumnValues(cell.value(), value) == 0)
                 return true;
-        }
         return false;
     }
     return this->searchValue(value) == 1;
 }
 
-// MIN FIX: signature must match stored type
 bool Column::accessReplaceValue(int row, std::optional<ColumnValue> newValue)
 {
     if (row < 0 || static_cast<size_t>(row) >= this->data.size())
@@ -364,20 +335,141 @@ bool Column::accessReplaceValue(int row, std::optional<ColumnValue> newValue)
 
 std::string Column::valueToString(size_t i) const
 {
-    // safe: caller checks has_value(), but we keep it robust
-    if (!data[i].has_value())
-        return "NULL";
+    // Petit helper: conversion en string (pour colonne STRING)
+    auto toString = [](const ColumnValue& x) -> std::string {
+        return std::visit([](auto&& arg) -> std::string {
+            using T = std::decay_t<decltype(arg)>;
+
+            if constexpr (std::is_same_v<T, std::monostate>) {
+                return "NULL";
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                return arg;
+            } else if constexpr (std::is_same_v<T, std::any>) {
+                return "[object]";
+            } else if constexpr (std::is_same_v<T, std::uint8_t> || std::is_same_v<T, std::int8_t>) {
+                // éviter l'affichage en caractère
+                return std::to_string(static_cast<int>(arg));
+            } else if constexpr (std::is_arithmetic_v<T>) {
+                return std::to_string(arg);
+            } else {
+                return "[unsupported]";
+            }
+        }, x);
+    };
+
+    if (!data[i].has_value()) return "NULL";
 
     return std::visit([](auto&& arg) -> std::string {
         using T = std::decay_t<decltype(arg)>;
+
         if constexpr (std::is_same_v<T, std::monostate>) {
             return "NULL";
         } else if constexpr (std::is_same_v<T, std::string>) {
             return arg;
         } else if constexpr (std::is_same_v<T, std::any>) {
             return "[object]";
+        } else if constexpr (std::is_same_v<T, std::uint8_t> || std::is_same_v<T, std::int8_t>) {
+            return std::to_string(static_cast<int>(arg));
         } else {
             return std::to_string(arg);
         }
     }, data[i].value());
+}
+
+bool Column::insertValueAuto(const ColumnValue& v)
+{
+    // NULL accepté partout
+    if (std::holds_alternative<std::monostate>(v))
+        return insertValue(std::nullopt);
+
+    auto toString = [](const ColumnValue& x) -> std::string {
+        return std::visit([](auto&& arg) -> std::string {
+            using T = std::decay_t<decltype(arg)>;
+
+            if constexpr (std::is_same_v<T, std::monostate>) {
+                return "NULL";
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                return arg;
+            } else if constexpr (std::is_same_v<T, std::any>) {
+                return "[object]";
+            } else if constexpr (std::is_same_v<T, std::uint8_t> || std::is_same_v<T, std::int8_t>) {
+                return std::to_string(static_cast<int>(arg));
+            } else if constexpr (std::is_arithmetic_v<T>) {
+                return std::to_string(arg);
+            } else {
+                return "[unsupported]";
+            }
+        }, x);
+    };
+
+
+    auto toNumber = [](const ColumnValue& x) -> std::optional<long double> {
+        return std::visit([](auto&& arg) -> std::optional<long double> {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, std::monostate> || std::is_same_v<T, std::string> || std::is_same_v<T, std::any>)
+                return std::nullopt;
+            if constexpr (std::is_arithmetic_v<T>)
+                return static_cast<long double>(arg);
+            return std::nullopt;
+        }, x);
+    };
+
+    switch (this->columnType) {
+        case ColumnType::NULLVAL:
+            return false;
+
+        case ColumnType::OBJECT: {
+            if (std::holds_alternative<std::any>(v))
+                return insertValue(std::optional<ColumnValue>(v));
+            return insertValue(std::optional<ColumnValue>(ColumnValue(std::any(v))));
+        }
+
+        case ColumnType::STRING: {
+            std::string s = toString(v);
+            return insertValue(std::optional<ColumnValue>(ColumnValue(std::move(s))));
+        }
+
+        case ColumnType::INT: {
+            auto n = toNumber(v); if (!n) return false;
+            return insertValue(std::optional<ColumnValue>(ColumnValue(static_cast<int32_t>(*n))));
+        }
+        case ColumnType::UINT: {
+            auto n = toNumber(v); if (!n) return false;
+            return insertValue(std::optional<ColumnValue>(ColumnValue(static_cast<uint32_t>(*n))));
+        }
+        case ColumnType::SHORT: {
+            auto n = toNumber(v); if (!n) return false;
+            return insertValue(std::optional<ColumnValue>(ColumnValue(static_cast<int16_t>(*n))));
+        }
+        case ColumnType::USHORT: {
+            auto n = toNumber(v); if (!n) return false;
+            return insertValue(std::optional<ColumnValue>(ColumnValue(static_cast<uint16_t>(*n))));
+        }
+        case ColumnType::LONG: {
+            auto n = toNumber(v); if (!n) return false;
+            return insertValue(std::optional<ColumnValue>(ColumnValue(static_cast<int64_t>(*n))));
+        }
+        case ColumnType::ULONG: {
+            auto n = toNumber(v); if (!n) return false;
+            return insertValue(std::optional<ColumnValue>(ColumnValue(static_cast<uint64_t>(*n))));
+        }
+        case ColumnType::CHAR: {
+            auto n = toNumber(v); if (!n) return false;
+            return insertValue(std::optional<ColumnValue>(ColumnValue(static_cast<int8_t>(*n))));
+        }
+        case ColumnType::UCHAR: {
+            auto n = toNumber(v); if (!n) return false;
+            return insertValue(std::optional<ColumnValue>(ColumnValue(static_cast<uint8_t>(*n))));
+        }
+        case ColumnType::FLOAT: {
+            auto n = toNumber(v); if (!n) return false;
+            return insertValue(std::optional<ColumnValue>(ColumnValue(static_cast<float>(*n))));
+        }
+        case ColumnType::DOUBLE: {
+            auto n = toNumber(v); if (!n) return false;
+            return insertValue(std::optional<ColumnValue>(ColumnValue(static_cast<double>(*n))));
+        }
+        default:
+            return false;
+    }
 }

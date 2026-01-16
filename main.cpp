@@ -205,16 +205,29 @@ int main(int argc, char const *argv[])
     df.printHeader();
 
     // Round-trip CSV (sur un autre DF pour garder 3 colonnes)
-    CDataframe df2(types);
+    std::vector<ColumnType> types2 = {ColumnType::INT, ColumnType::STRING, ColumnType::FLOAT, ColumnType::NULLVAL};
+
+    CDataframe df2(types2);
     df2.setColumnNames({"X", "Y", "Z"});
-    df2.insertRow(std::vector<ColumnValue>{10, 20, 30});
-    df2.insertRow(std::vector<ColumnValue>{40, 50, 60});
+    df2.insertRow(std::vector<ColumnValue>{
+    ColumnValue(int32_t{42}),
+    ColumnValue(std::string("Alice")),
+    ColumnValue(double{12.5}),
+    ColumnValue(std::monostate{})
+    });
+    df2.insertRow(std::vector<ColumnValue>{
+    ColumnValue(int32_t{47}),
+    ColumnValue(std::string("test")),
+    ColumnValue(double{12.75}),
+    ColumnValue(std::monostate{})
+    });
 
     std::cout << "\nSauvegarde CSV -> df_test.csv" << std::endl;
     df2.saveToCSV("df_test.csv");
+    
 
     std::cout << "Chargement CSV depuis df_test.csv" << std::endl;
-    auto df3 = CDataframe::loadFromCSV("df_test.csv", types);
+    auto df3 = CDataframe::loadFromCSV("df_test.csv", types2);
     df3->head();
     std::cout << "Rows chargées: " << df3->getRowsCount() << ", Colonnes: " << df3->getColumnsCount() << std::endl;
 
