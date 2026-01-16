@@ -51,7 +51,7 @@ public:
     * @param value : The value to insert (as ColumnValue)
     * @return: true if the value is correctly inserted, false otherwise
     */
-    void insertValue(std::optional<ColumnValue> value);
+    bool insertValue(std::optional<ColumnValue> value);
 
     /**
      * @brief : remove a value  to a given index

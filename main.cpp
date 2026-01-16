@@ -220,5 +220,11 @@ int main(int argc, char const *argv[])
 
     std::cout << "\n=== FIN TEST PARTIE 8 ===" << std::endl;
 
+    Column col9("TestReplaceValue", ColumnType::INT);
+    std::cout << "Insertion de 3.55f dans col9 (type INT): "
+              << (col9.insertValue(3.55f) ? "Succès" : "Échec") << std::endl;
+
+    col9.display();
+
     return 0;
 }

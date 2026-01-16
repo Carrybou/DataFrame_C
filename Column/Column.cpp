@@ -18,10 +18,69 @@ Column::Column(const std::string& colName, ColumnType type){
 }
 
 // column can store all types of ColumnValue
-void Column::insertValue(std::optional<ColumnValue> value)
+bool Column::insertValue(std::optional<ColumnValue> value)
 {
-    this->data.push_back(value);
-    this->validIndex = false;
+    // check for each enum type
+    if (value.has_value()) {
+        switch (this->columnType) {
+            case ColumnType::NULLVAL:
+                if (!std::holds_alternative<std::monostate>(value.value()))
+                    return false;
+                break;
+            case ColumnType::UINT:
+                if (!std::holds_alternative<uint32_t>(value.value()))
+                    return false;
+                break;
+            case ColumnType::INT:
+                if (!std::holds_alternative<int32_t>(value.value()))
+                    return false;
+                break;
+            case ColumnType::USHORT:
+                if (!std::holds_alternative<uint16_t>(value.value()))
+                    return false;
+                break;
+            case ColumnType::SHORT:
+                if (!std::holds_alternative<int16_t>(value.value()))
+                    return false;
+                break;
+            case ColumnType::ULONG:
+                if (!std::holds_alternative<uint64_t>(value.value()))
+                    return false;
+                break;
+            case ColumnType::LONG:
+                if (!std::holds_alternative<int64_t>(value.value()))
+                    return false;
+                break;
+            case ColumnType::UCHAR:
+                if (!std::holds_alternative<uint8_t>(value.value()))
+                    return false;
+                break;
+            case ColumnType::CHAR:
+                if (!std::holds_alternative<int8_t>(value.value()))
+                    return false;
+                break;
+            case ColumnType::FLOAT:
+                if (!std::holds_alternative<float>(value.value()))
+                    return false;
+                break;
+            case ColumnType::DOUBLE:
+                if (!std::holds_alternative<double>(value.value()))
+                    return false;
+                break;
+            case ColumnType::STRING:
+                if (!std::holds_alternative<std::string>(value.value()))
+                    return false;
+                break;
+            case ColumnType::OBJECT:
+                if (!std::holds_alternative<std::any>(value.value()))
+                    return false;
+                break;
+            default:
+                return false;
+        }
+    }
+    data.push_back(value);
+    return true;
 }
 
 bool Column::removeValue(const int index)
